@@ -1,4 +1,5 @@
 import torch
+import torchvision
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset 
@@ -6,6 +7,7 @@ from torch.utils.data import DataLoader
 from skimage import io
 import csv
 import os
+import matplotlib.pyplot as plt
 
 
 # class VGG(nn.Module):
@@ -179,7 +181,7 @@ class VGG(nn.Module):
                 self.num_hidden),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(self.num_hidden, self.num_classes),
+            nn.Linear(self.num_hidden, self.num_hidden),
             nn.ReLU(),
             nn.Dropout(p=0.5),
             nn.Linear(self.num_hidden, self.num_classes)
@@ -214,7 +216,7 @@ class VGG(nn.Module):
         return nn.Sequential(*layers)
 
 class SportLoader(Dataset):
-    def __init__(self, mode, img_list, label_list=None, transform=None):
+    def __init__(self, mode, img_list, label_list=None, transform=torchvision.transforms.ToTensor()):
         self.mode = mode
         self.img_list = img_list  # imd_name list from csv file
         self.label_list = label_list  # label list from csv file
@@ -225,8 +227,8 @@ class SportLoader(Dataset):
 
     def __getitem__(self, index):
         img_path = "dataset/" + self.mode + "/" + self.img_list[index]
-        img = io.imread(img_path).reshape(3,224,224)
-        img = torch.tensor(img, dtype=torch.float)
+        img = io.imread(img_path)
+        img = self.transform(img)
         if self.mode == "test":
             return img
         label = torch.tensor(int(self.label_list[index]))
@@ -246,6 +248,22 @@ def get_data(mode):
             label_list.append(row[1])
     return img_list, label_list
 
+def plot(num_epoch, train, val, title):
+    plt.plot(range(1, num_epoch+1), train, '-b', label='train')
+    plt.plot(range(1, num_epoch+1), val, '-r', label='val')
+
+    plt.xlabel("n epoch")
+    plt.legend(loc='upper left')
+    plt.title(title)
+
+    # save image
+    plt.savefig(title+".png")  # should before show method
+
+    # show
+    plt.show()
+    plt.clf()
+
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # model = VGG19 = VGG(num_classes=10).to(device)
 model = VGG19 = VGG(in_channels=3, 
@@ -262,11 +280,11 @@ train_dataset = SportLoader("train", train_img, train_label)
 val_dataset = SportLoader("val", val_img, val_label)
 test_dataset = SportLoader("test", test_img)
 
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=16, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=True)
 
-num_epochs = 100
+num_epochs = 50
 learning_rate = 0.005
 
 # Loss and optimizer
@@ -277,8 +295,13 @@ optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay =
 # Train the model
 total_step = len(train_loader)
 
-
+train_loss_list = []
+val_loss_list = []
+train_acc = []
+val_acc = []
 for epoch in range(num_epochs):
+    train_correct = 0
+    train_total = 0
     for i, (images, labels) in enumerate(train_loader):  
         # Move tensors to the configured device
         images = images.to(device)
@@ -286,14 +309,19 @@ for epoch in range(num_epochs):
         
         # Forward pass
         outputs = model(images)
-        loss = criterion(outputs, labels)
+        train_loss = criterion(outputs, labels)
         
         # Backward and optimize
         optimizer.zero_grad()
-        loss.backward()
+        train_loss.backward()
         optimizer.step()
 
-    print (f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{total_step}], Loss: {loss.item():.4f}')
+        # statistc
+        _, predicted = torch.max(outputs.data, 1)
+        train_correct += (predicted == labels).sum().item()
+        train_total += labels.size(0)
+
+    print (f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{total_step}], Loss: {train_loss.item():.4f}')
 
     # Validation
     with torch.no_grad():
@@ -303,6 +331,7 @@ for epoch in range(num_epochs):
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
+            val_loss = criterion(outputs, labels)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
@@ -310,6 +339,14 @@ for epoch in range(num_epochs):
     
         print(f'Accuracy of the network on the {total} validation images: {100 * correct / total} %')
 
+    train_loss_list.append(train_loss.item())
+    val_loss_list.append(val_loss.item())
+    train_acc.append(100 * train_correct / train_total)
+    val_acc.append(100 * correct / total)
+
+
+plot(num_epochs, train_loss_list, val_loss_list, "Loss Curve")
+plot(num_epochs, train_acc, val_acc, "Accuracy Curve")
 
 # with torch.no_grad():
 #     correct = 0

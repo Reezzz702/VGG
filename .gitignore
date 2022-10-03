@@ -1,4 +1,4 @@
-dataset/test/*.jpg
-dataset/train/*.jpg
-dataset/val/*.jpg
-dataset/*.csv
+# dataset/test/*.jpg
+# dataset/train/*.jpg
+# dataset/val/*.jpg
+# dataset/*.csv

@@ -110,6 +110,8 @@ import os
 #         out = self.fc1(out)
 #         out = self.fc2(out)
 #         return out
+
+
 VGG19 = [
         64,
         64,
@@ -177,7 +179,7 @@ class VGG(nn.Module):
                 self.num_hidden),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(self.num_hidden, self.num_hidden),
+            nn.Linear(self.num_hidden, self.num_classes),
             nn.ReLU(),
             nn.Dropout(p=0.5),
             nn.Linear(self.num_hidden, self.num_classes)

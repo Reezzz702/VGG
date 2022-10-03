@@ -181,10 +181,10 @@ class VGG(nn.Module):
                 self.num_hidden),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(self.num_hidden, self.num_hidden),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
             nn.Linear(self.num_hidden, self.num_classes)
+            # nn.ReLU(),
+            # nn.Dropout(p=0.5),
+            # nn.Linear(self.num_hidden, self.num_classes)
         )
     
     def init_convs(self, architecture):
@@ -347,6 +347,10 @@ for epoch in range(num_epochs):
 
 plot(num_epochs, train_loss_list, val_loss_list, "Loss Curve")
 plot(num_epochs, train_acc, val_acc, "Accuracy Curve")
+
+# get # of parameters
+print(num_of_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad))
+
 
 # with torch.no_grad():
 #     correct = 0

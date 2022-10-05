@@ -180,7 +180,7 @@ train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=64)
 
-num_epochs = 50
+num_epochs = 1
 learning_rate = 0.005
 
 # Loss and optimizer
@@ -245,7 +245,8 @@ plot(num_epochs, train_loss_list, val_loss_list, "Loss Curve")
 plot(num_epochs, train_acc, val_acc, "Accuracy Curve")
 
 # get # of parameters
-print(num_of_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad))
+num_of_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(num_of_parameters)
 
 test_img = []
 test_predicted = []
@@ -254,7 +255,8 @@ with torch.no_grad():
         images = images.to(device)
         outputs = model(images)
         _, predicted = torch.max(outputs.data, 1)
-        test_predicted.extend(predicted.numpy())
+        temp = predicted.cpu().numpy()
+        test_predicted.extend(temp)
         test_img.extend(img_path)
         del images, outputs
 

@@ -1,4 +1,5 @@
 import torch
+import torchvision
 from torch import nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset 
@@ -6,110 +7,7 @@ from torch.utils.data import DataLoader
 from skimage import io
 import csv
 import os
-
-
-# class VGG(nn.Module):
-#     def __init__(self, num_classes=10):
-#         super(VGG, self).__init__()
-#         self.layer1 = nn.Sequential(
-#             nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(64),
-#             nn.ReLU())
-#         self.layer2 = nn.Sequential(
-#             nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(64),
-#             nn.ReLU(), 
-#             nn.MaxPool2d(kernel_size = 2, stride = 2))
-#         self.layer3 = nn.Sequential(
-#             nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(128),
-#             nn.ReLU())
-#         self.layer4 = nn.Sequential(
-#             nn.Conv2d(128, 128, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(128),
-#             nn.ReLU(),
-#             nn.MaxPool2d(kernel_size = 2, stride = 2))
-#         self.layer5 = nn.Sequential(
-#             nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(256),
-#             nn.ReLU())
-#         self.layer6 = nn.Sequential(
-#             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(256),
-#             nn.ReLU())
-#         self.layer7 = nn.Sequential(
-#             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(256),
-#             nn.ReLU())
-#         self.layer8 = nn.Sequential(
-#             nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(256),
-#             nn.ReLU(),
-#             nn.MaxPool2d(kernel_size = 2, stride = 2))
-#         self.layer9 = nn.Sequential(
-#             nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU())
-#         self.layer10 = nn.Sequential(
-#             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU())
-#         self.layer11 = nn.Sequential(
-#             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU())
-#         self.layer12 = nn.Sequential(
-#             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU(),
-#             nn.MaxPool2d(kernel_size = 2, stride = 2))
-#         self.layer13 = nn.Sequential(
-#             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU())
-#         self.layer14 = nn.Sequential(
-#             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU())
-#         self.layer15 = nn.Sequential(
-#             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU())
-#         self.layer16 = nn.Sequential(
-#             nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
-#             nn.BatchNorm2d(512),
-#             nn.ReLU(),
-#             nn.MaxPool2d(kernel_size = 2, stride = 2))
-#         self.fc = nn.Sequential(
-#             nn.Dropout(0.5),
-#             nn.Linear(7*7*512, 4096),
-#             nn.ReLU())
-#         self.fc1 = nn.Sequential(
-#             nn.Dropout(0.5),
-#             nn.Linear(4096, 4096),
-#             nn.ReLU())
-#         self.fc2= nn.Sequential(
-#             nn.Linear(4096, num_classes))
-        
-#     def forward(self, x):
-#         out = self.layer1(x)
-#         out = self.layer2(out)
-#         out = self.layer3(out)
-#         out = self.layer4(out)
-#         out = self.layer5(out)
-#         out = self.layer6(out)
-#         out = self.layer7(out)
-#         out = self.layer8(out)
-#         out = self.layer9(out)
-#         out = self.layer10(out)
-#         out = self.layer11(out)
-#         out = self.layer12(out)
-#         out = self.layer13(out)
-#         out = out.reshape(out.size(0), -1)
-#         out = self.fc(out)
-#         out = self.fc1(out)
-#         out = self.fc2(out)
-#         return out
+import matplotlib.pyplot as plt
 
 
 VGG19 = [
@@ -179,10 +77,10 @@ class VGG(nn.Module):
                 self.num_hidden),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(self.num_hidden, self.num_classes),
-            nn.ReLU(),
-            nn.Dropout(p=0.5),
             nn.Linear(self.num_hidden, self.num_classes)
+            # nn.ReLU(),
+            # nn.Dropout(p=0.5),
+            # nn.Linear(self.num_hidden, self.num_classes)
         )
     
     def init_convs(self, architecture):
@@ -214,7 +112,7 @@ class VGG(nn.Module):
         return nn.Sequential(*layers)
 
 class SportLoader(Dataset):
-    def __init__(self, mode, img_list, label_list=None, transform=None):
+    def __init__(self, mode, img_list, label_list=None, transform=torchvision.transforms.ToTensor()):
         self.mode = mode
         self.img_list = img_list  # imd_name list from csv file
         self.label_list = label_list  # label list from csv file
@@ -225,10 +123,10 @@ class SportLoader(Dataset):
 
     def __getitem__(self, index):
         img_path = "dataset/" + self.mode + "/" + self.img_list[index]
-        img = io.imread(img_path).reshape(3,224,224)
-        img = torch.tensor(img, dtype=torch.float)
+        img = io.imread(img_path)
+        img = self.transform(img)
         if self.mode == "test":
-            return img
+            return img, img_path
         label = torch.tensor(int(self.label_list[index]))
         return img, label 
 
@@ -246,6 +144,22 @@ def get_data(mode):
             label_list.append(row[1])
     return img_list, label_list
 
+def plot(num_epoch, train, val, title):
+    plt.plot(range(1, num_epoch+1), train, '-b', label='train')
+    plt.plot(range(1, num_epoch+1), val, '-r', label='val')
+
+    plt.xlabel("n epoch")
+    plt.legend(loc='upper left')
+    plt.title(title)
+
+    # save image
+    plt.savefig(title+".png")  # should before show method
+
+    # show
+    plt.show()
+    plt.clf()
+
+
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # model = VGG19 = VGG(num_classes=10).to(device)
 model = VGG19 = VGG(in_channels=3, 
@@ -262,11 +176,11 @@ train_dataset = SportLoader("train", train_img, train_label)
 val_dataset = SportLoader("val", val_img, val_label)
 test_dataset = SportLoader("test", test_img)
 
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=True)
-test_loader = DataLoader(test_dataset, batch_size=16, shuffle=True)
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64)
 
-num_epochs = 100
+num_epochs = 1
 learning_rate = 0.005
 
 # Loss and optimizer
@@ -277,8 +191,13 @@ optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay =
 # Train the model
 total_step = len(train_loader)
 
-
+train_loss_list = []
+val_loss_list = []
+train_acc = []
+val_acc = []
 for epoch in range(num_epochs):
+    train_correct = 0
+    train_total = 0
     for i, (images, labels) in enumerate(train_loader):  
         # Move tensors to the configured device
         images = images.to(device)
@@ -286,14 +205,19 @@ for epoch in range(num_epochs):
         
         # Forward pass
         outputs = model(images)
-        loss = criterion(outputs, labels)
+        train_loss = criterion(outputs, labels)
         
         # Backward and optimize
         optimizer.zero_grad()
-        loss.backward()
+        train_loss.backward()
         optimizer.step()
 
-    print (f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{total_step}], Loss: {loss.item():.4f}')
+        # statistc
+        _, predicted = torch.max(outputs.data, 1)
+        train_correct += (predicted == labels).sum().item()
+        train_total += labels.size(0)
+
+    print (f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{total_step}], Loss: {train_loss.item():.4f}')
 
     # Validation
     with torch.no_grad():
@@ -303,6 +227,7 @@ for epoch in range(num_epochs):
             images = images.to(device)
             labels = labels.to(device)
             outputs = model(images)
+            val_loss = criterion(outputs, labels)
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
@@ -310,19 +235,38 @@ for epoch in range(num_epochs):
     
         print(f'Accuracy of the network on the {total} validation images: {100 * correct / total} %')
 
+    train_loss_list.append(train_loss.item())
+    val_loss_list.append(val_loss.item())
+    train_acc.append(100 * train_correct / train_total)
+    val_acc.append(100 * correct / total)
 
-# with torch.no_grad():
-#     correct = 0
-#     total = 0
-#     for images, labels in test_loader:
-#         images = images.to(device)
-#         labels = labels.to(device)
-#         outputs = model(images)
-#         _, predicted = torch.max(outputs.data, 1)
-#         total += labels.size(0)
-#         correct += (predicted == labels).sum().item()
-#         del images, labels, outputs
 
-#     print(f'Accuracy of the network on the {total} test images: {100 * correct / total} %')
+plot(num_epochs, train_loss_list, val_loss_list, "Loss Curve")
+plot(num_epochs, train_acc, val_acc, "Accuracy Curve")
+
+# get # of parameters
+num_of_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(num_of_parameters)
+
+test_img = []
+test_predicted = []
+with torch.no_grad():
+    for images, img_path in test_loader:
+        images = images.to(device)
+        outputs = model(images)
+        _, predicted = torch.max(outputs.data, 1)
+        temp = predicted.cpu().numpy()
+        test_predicted.extend(temp)
+        test_img.extend(img_path)
+        del images, outputs
+
+    print(f'Accuracy of the network on the {total} test images: {100 * correct / total} %')
+
+with open("test.csv", 'w', newline='') as f:
+    writer = csv.writer(f)
+    writer.writerow(["names", "label"])
+    for i in range(len(test_img)):
+        writer.writerow([test_img[i], test_predicted[i]])
+    f.close()
 # ref1: https://jaketae.github.io/study/pytorch-vgg/
 # ref2: https://blog.paperspace.com/vgg-from-scratch-pytorch/

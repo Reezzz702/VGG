@@ -5,7 +5,8 @@ from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
 from skimage import io
 import csv
-import os
+import matplotlib.pyplot as plt
+
 
 VGG19 = [
         64,
@@ -124,42 +125,134 @@ class VGG(nn.Module):
         return nn.Sequential(*layers)
 
 class SportLoader(Dataset):
-    def __init__(self, img_list, transform=torchvision.transforms.ToTensor()):
+    def __init__(self, mode, img_list, label_list=None, transform=torchvision.transforms.ToTensor()):
+        self.mode = mode
         self.img_list = img_list  # imd_name list from csv file
+        self.label_list = label_list  # label list from csv file
         self.transform = transform
     
     def __len__(self):
         return len(self.img_list)
 
     def __getitem__(self, index):
-        img_path = "dataset/test/" + self.img_list[index]
+        img_path = "dataset/" + self.mode + "/" + self.img_list[index]
         img = io.imread(img_path)
         img = self.transform(img)
-        return img, self.img_list[index]
+        label = torch.tensor(int(self.label_list[index]))
+        return img, label 
 
-test_img = os.listdir('dataset/test')
-test_dataset = SportLoader(test_img)
-test_loader = DataLoader(test_dataset, batch_size=64)
+def get_data(mode):
+    img_list = []
+    label_list = []
 
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-model = torch.load("HW1_311554021.pt")
-model.to(device)
+    with open("dataset/"+ mode +".csv", 'r') as file:
+        csvreader = csv.reader(file)
+        next(csvreader)
+        for row in csvreader:
+            img_list.append(row[0])
+            label_list.append(row[1])
+    return img_list, label_list
 
-test_img = []
-test_predicted = []
-with torch.no_grad():
-    for images, img_path in test_loader:
+def plot(num_epoch, train, val, title):
+    plt.plot(range(1, num_epoch+1), train, '-b', label='train')
+    plt.plot(range(1, num_epoch+1), val, '-r', label='val')
+
+    plt.xlabel("n epoch")
+    plt.legend(loc='upper left')
+    plt.title(title)
+
+    # save image
+    plt.savefig(title+".png")  # should before show method
+
+    # show
+    plt.show()
+    plt.clf()
+
+
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+model = VGG19 = VGG(in_channels=3, 
+    in_height=224, 
+    in_width=224, 
+    architecture=VGG19).to(device)
+
+
+train_img, train_label = get_data('train')
+val_img, val_label = get_data('val')
+
+train_dataset = SportLoader("train", train_img, train_label)
+val_dataset = SportLoader("val", val_img, val_label)
+
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=64, shuffle=True)
+
+num_epochs = 50
+learning_rate = 0.005
+
+# Loss and optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 0.005, momentum = 0.9)  
+
+
+# Train the model
+total_step = len(train_loader)
+
+train_loss_list = []
+val_loss_list = []
+train_acc = []
+val_acc = []
+for epoch in range(num_epochs):
+    train_correct = 0
+    train_total = 0
+    for i, (images, labels) in enumerate(train_loader):  
+        # Move tensors to the configured device
         images = images.to(device)
+        labels = labels.to(device)
+        
+        # Forward pass
         outputs = model(images)
-        _, predicted = torch.max(outputs.data, 1)
-        temp = predicted.cpu().numpy()
-        test_predicted.extend(temp)
-        test_img.extend(img_path)
-        del images, outputs
+        train_loss = criterion(outputs, labels)
+        
+        # Backward and optimize
+        optimizer.zero_grad()
+        train_loss.backward()
+        optimizer.step()
 
-with open("HW1_311554021.csv", 'w', newline='') as f:
-    writer = csv.writer(f)
-    writer.writerow(["names", "label"])
-    for i in range(len(test_img)):
-        writer.writerow([test_img[i], test_predicted[i]])
-    f.close()
+        # statistc
+        _, predicted = torch.max(outputs.data, 1)
+        train_correct += (predicted == labels).sum().item()
+        train_total += labels.size(0)
+
+    print (f'Epoch [{epoch+1}/{num_epochs}], Step [{i+1}/{total_step}], Loss: {train_loss.item():.4f}')
+
+    # Validation
+    with torch.no_grad():
+        correct = 0
+        total = 0
+        for images, labels in val_loader:
+            images = images.to(device)
+            labels = labels.to(device)
+            outputs = model(images)
+            val_loss = criterion(outputs, labels)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+            del images, labels, outputs
+    
+        print(f'Accuracy of the network on the {total} validation images: {100 * correct / total} %')
+
+    train_loss_list.append(train_loss.item())
+    val_loss_list.append(val_loss.item())
+    train_acc.append(100 * train_correct / train_total)
+    val_acc.append(100 * correct / total)
+
+
+plot(num_epochs, train_loss_list, val_loss_list, "Loss Curve")
+plot(num_epochs, train_acc, val_acc, "Accuracy Curve")
+
+# get number of parameters
+num_of_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+print(f"number of parameters: {num_of_parameters}")
+
+torch.save(model, "HW1_311554021.pt")
+# 122840906 VGG19 - 1FC
+# 118122314 VGG19 - 1FC with kernel size == 1 before last3 max pooling
